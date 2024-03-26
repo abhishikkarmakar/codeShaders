@@ -182,13 +182,11 @@ def init_session_state():
         "comments": {mode: {} for mode in modes_tasks},
     }
 
-
 # Initialize or load session state
 def get_session_state():
     if "state" not in st.session_state:
         st.session_state.state = init_session_state()
     return st.session_state.state
-
 
 # Sidebar - Mode selection
 selected_mode = st.sidebar.selectbox("Select Mode", list(modes_tasks.keys()))
