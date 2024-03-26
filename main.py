@@ -1,5 +1,52 @@
+import sqlite3
+
 import streamlit as st
 
+
+# Function to initialize database connection
+def initialize_database():
+    conn = sqlite3.connect("checkboxes.db")
+    c = conn.cursor()
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS checkbox_states (
+                 mode TEXT,
+                 task TEXT,
+                 checkbox_state INTEGER,
+                 comment TEXT
+              )"""
+    )
+    conn.commit()
+    conn.close()
+
+
+# Function to save checkbox state and comment to the database
+def save_to_database(mode, task, checkbox_state, comment):
+    conn = sqlite3.connect("checkboxes.db")
+    c = conn.cursor()
+    c.execute(
+        """INSERT INTO checkbox_states (mode, task, checkbox_state, comment)
+                 VALUES (?, ?, ?, ?)""",
+        (mode, task, checkbox_state, comment),
+    )
+    conn.commit()
+    conn.close()
+
+
+# Function to retrieve checkbox state and comment from the database
+def retrieve_from_database(mode):
+    conn = sqlite3.connect("checkboxes.db")
+    c = conn.cursor()
+    c.execute(
+        """SELECT task, checkbox_state, comment FROM checkbox_states WHERE mode = ?""",
+        (mode,),
+    )
+    data = c.fetchall()
+    conn.close()
+    return data
+
+
+# Initialize database connection
+initialize_database()
 # Define tasks for each mode
 modes_tasks = {
     "Flow of Program": [
@@ -174,20 +221,6 @@ modes_tasks = {
     "Heaps": [],  # No problems provided
 }
 
-
-# Function to initialize or load session state
-def init_session_state():
-    return {
-        "checkboxes": {mode: {} for mode in modes_tasks},
-        "comments": {mode: {} for mode in modes_tasks},
-    }
-
-# Initialize or load session state
-def get_session_state():
-    if "state" not in st.session_state:
-        st.session_state.state = init_session_state()
-    return st.session_state.state
-
 # Sidebar - Mode selection
 selected_mode = st.sidebar.selectbox("Select Mode", list(modes_tasks.keys()))
 
@@ -195,18 +228,12 @@ selected_mode = st.sidebar.selectbox("Select Mode", list(modes_tasks.keys()))
 st.title(selected_mode)
 tasks = modes_tasks[selected_mode]
 
-# Get the checkboxes and comments for the selected mode
-state = get_session_state()
-checkboxes = state["checkboxes"][selected_mode]
-comments = state["comments"][selected_mode]
+# Get the checkboxes and comments for the selected mode from the database
+checkboxes_data = retrieve_from_database(selected_mode)
+checkboxes = {task: state for task, state, _ in checkboxes_data}
+comments = {task: comment for task, _, comment in checkboxes_data}
 
 for task in tasks:
-    checkbox = st.checkbox(task, value=checkboxes.get(task, False))
-    checkboxes[task] = checkbox
-
+    checkbox_state = st.checkbox(task, value=checkboxes.get(task, False))
     comment = st.text_input(f"Comments for {task}", value=comments.get(task, ""))
-    comments[task] = comment
-
-# Save checkboxes and comments back to session state
-state["checkboxes"][selected_mode] = checkboxes
-state["comments"][selected_mode] = comments
+    save_to_database(selected_mode, task, checkbox_state, comment)
